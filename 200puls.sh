@@ -21,9 +21,14 @@
 # can do whatever you want with this stuff. If we meet some day, and you think
 # this stuff is worth it, you can buy me a beer in return Jochen Bartl
 #
-
+# TODO
+# - Error log
+#
 
 declare -g -r PACTL=$(which pactl)
+declare -g -r NOTIFYSEND=$(which notify-send)
+
+declare -g NOTIFY_ENABLED=1
 
 # Output helper function for Error message
 # - Exits shell script!
@@ -40,9 +45,19 @@ print_info() {
 	echo "[INFO] $1" >&2
 }
 
+notify_send() {
+	local summary=$1; shift
+	local body=$1
+
+	if [ "$NOTIFY_ENABLED" = "1" ]; then
+		$NOTIFYSEND "$summary" "$body"
+	fi
+}
+
 # Return ID of active/RUNNING sink
+# FIXME Need to find a way to figure out which device is the fallback
 get_active_sink() {
-	local -i sinkid
+	local -i sinkid=0
 
 	sinkid="$($PACTL list short sinks | grep RUNNING | cut -f1)"
 
@@ -97,6 +112,24 @@ is_sink_mute() {
 	fi
 }
 
+get_sink_volume() {
+	local -i sinkid=$1
+	local vol=""
+	local -i volleft=0
+	local -i volright=0
+
+	vol=$(pactl list sinks | grep -A15 "$(printf "Sink #%i" $sinkid)" | grep -P "\s+Volume:\s\d:" | sed 's/.*Volume: 0: \+\([0-9]\{1,3\}\)% 1: \+\([0-9]\{1,3\}\)%$/\1_\2/')
+	volleft=$(echo $vol | cut -d"_" -f1)
+	volright=$(echo $vol | cut -d"_" -f2)
+
+	if [ "$volleft" != "$volright" ]; then
+		print_error "get_sink_volume: Volume level on left($volleft)/right($volright) channel is not equal -> Not supported!" 
+	else
+		echo $volleft
+		return 0
+	fi
+}
+
 toggle_sink_mute() {
 	local -i sinkid=$1; shift
 	local -i sinkmute
@@ -105,9 +138,11 @@ toggle_sink_mute() {
 	
 	if [ "$sinkmute" = "1" ]; then
 		print_info "Unmuting sink $sinkid"
+		notify_send "200puls" "Mute: off"
 		$PACTL set-sink-mute $sinkid 0
 	else
 		print_info "Muting sink $sinkid"
+		notify_send "200puls" "Mute: on"
 		$PACTL set-sink-mute $sinkid 1
 	fi
 }
@@ -120,8 +155,14 @@ mute_active_sink() {
 # TODO Make 10% default, but allow custom value via $1
 raise_sink_volume() {
 	local -i sinkid=$(get_active_sink)
+	local -i vol=0
+
 
 	$PACTL set-sink-volume $sinkid -- +10%
+
+	vol=$(get_sink_volume $sinkid)
+
+	notify_send "Volume" "$vol%"
 }
 
 # TODO Make 10% default, but allow custom value via $1
@@ -129,21 +170,54 @@ lower_sink_volume() {
 	local -i sinkid=$(get_active_sink)
 	
 	$PACTL set-sink-volume $sinkid -- -10%
+	
+	vol=$(get_sink_volume $sinkid)
+
+	notify_send "Volume" "$vol%"
 }
 
 # The usual help message
 usage() {
-	echo -e "Usage:\n\n$0 (mute|raise-volume|lower-volume)\n" 1>&2
-	echo -e "Example:\n\n\t$0 mute\tToggles mute status of the current output device\n" 1>&2
+	echo -e "Usage:\n\n$0 [OPTION]... (mute|raise-volume|lower-volume)\n" 1>&2
+	echo -e "\t-q, --quiet\n\t\tDisable notifications\n" 1>&2
+	echo -e "Examples:\n\n\t$0 mute\tToggles mute status of the current output device\n" 1>&2
 	echo -e "\t$0 raise-volume\tRaise volume of current output device by 10%\n" 1>&2
 	echo -e "\t$0 lower-volume\tLower volume of current output device by 10%\n" 1>&2
 
 	exit 2
 }
 
+## main()
+
+# Disable notifciations if notify-send is missing
+if [ -z "$NOTIFYSEND" ]; then
+	NOTIFY_ENABLED=0
+fi
+
+tmp_getopts=$(getopt -o hq --long help,quiet -- "$@")
+eval set -- "$tmp_getopts"
+
+opt_quiet=0
+
+while true; do
+	case "$1" in
+		-h|--help) usage;;
+		# Disable notifications
+		-q|--quiet) opt_quiet=1; shift 1;;
+		--) shift; break;;
+		*) usage;;
+	esac
+done
+
+# Disable notifications
+if [ "$opt_quiet" = "1" ]; then
+	NOTIFY_ENABLED=0
+fi
+
 case "$1" in
 	'test')
 		get_active_sink
+		get_sink_volume 0
 		is_sink_mute 0
 		is_sink_mute 3
 	;;
