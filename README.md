@@ -11,6 +11,13 @@ bindsym XF86AudioMute exec --no-startup-id /usr/local/bin/200puls mute && killal
 bindsym XF86AudioRaiseVolume exec --no-startup-id /usr/local/bin/200puls raise-volume && killall -SIGUSR1 i3status
 bindsym XF86AudioLowerVolume exec --no-startup-id /usr/local/bin/200puls lower-volume && killall -SIGUSR1 i3status
 
+Dependencies
+------------
+
+- GNU Bash
+- pactl: apt-get install pulseaudio-utils
+- notify-send: apt-get install libnotify-bin
+
 License
 -------
 
