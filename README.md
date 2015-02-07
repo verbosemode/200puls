@@ -7,9 +7,9 @@ Script for controlling PulseAudio output devices
 Usage examples from my i3 config
 --------------------------------
 
-bindsym XF86AudioMute exec --no-startup-id /usr/local/bin/200puls mute && killall -SIGUSR1 i3status
-bindsym XF86AudioRaiseVolume exec --no-startup-id /usr/local/bin/200puls raise-volume && killall -SIGUSR1 i3status
-bindsym XF86AudioLowerVolume exec --no-startup-id /usr/local/bin/200puls lower-volume && killall -SIGUSR1 i3status
+	bindsym XF86AudioMute exec --no-startup-id /usr/local/bin/200puls mute && killall -SIGUSR1 i3status
+	bindsym XF86AudioRaiseVolume exec --no-startup-id /usr/local/bin/200puls raise-volume && killall -SIGUSR1 i3status
+	bindsym XF86AudioLowerVolume exec --no-startup-id /usr/local/bin/200puls lower-volume && killall -SIGUSR1 i3status
 
 Dependencies
 ------------
